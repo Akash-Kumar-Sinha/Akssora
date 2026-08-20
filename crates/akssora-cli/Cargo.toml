@@ -1,0 +1,14 @@
+[package]
+name = "akssora-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "akssora"
+path = "src/main.rs"
+
+[dependencies]
+akssora-core = { path = "../akssora-core" }
+tokio = {workspace = true}
+clap = { version = "4", features = ["derive"] }

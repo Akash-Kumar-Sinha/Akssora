@@ -1,0 +1,15 @@
+[package]
+name = "akssora-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = {workspace = true}
+hyper = {workspace = true}
+hyper-util = {workspace = true}
+http-body-util = {workspace = true}
+serde_json = {workspace = true}
+bytes = {workspace = true}
+tokio = {workspace = true}
+thiserror = {workspace = true}
