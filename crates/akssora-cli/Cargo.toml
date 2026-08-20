@@ -9,6 +9,6 @@ name = "akssora"
 path = "src/main.rs"
 
 [dependencies]
-akssora-core = { path = "../akssora-core" }
+session = { path = "../session" }
 tokio = {workspace = true}
 clap = { version = "4", features = ["derive"] }

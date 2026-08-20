@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/akssora-cli","crates/akssora-core", "crates/akssora-guest-agent"]
+members = ["crates/akssora-cli","crates/akssora-core", "crates/akssora-guest-agent", "crates/session"]
 resolver = "3"
 
 [workspace.package]
@@ -17,3 +17,5 @@ thiserror = "2.0.20"
 tokio = { version = "1.53.1", features = ["full"] }
 bytes = "1.12.1"
 tokio-vsock = "0.7.2"
+uuid = { version="1.24.1", features = ["v4"] }
+pty-process = { version="0.5.3", features = ["async"]}

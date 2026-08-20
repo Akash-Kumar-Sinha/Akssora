@@ -1,0 +1,10 @@
+[package]
+name = "session"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+akssora-core = { path = "../akssora-core" }
+thiserror = {workspace = true}
+uuid = {workspace = true}
