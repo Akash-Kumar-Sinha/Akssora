@@ -1,0 +1,3 @@
+**/target
+images/rootfs.ext4
+images/vmlinux
