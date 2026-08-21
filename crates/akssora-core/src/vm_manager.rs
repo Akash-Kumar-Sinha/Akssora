@@ -87,7 +87,7 @@ impl VmManager {
                 },
             )
             .await
-            .expect("Failed to configure boot source");
+            .map_err(|e| AkssoraCoreError::BootConfig(e.to_string()))?;
 
         client
             .put(
@@ -100,7 +100,7 @@ impl VmManager {
                 },
             )
             .await
-            .expect("Failed to configure rootfs drive");
+            .map_err(|e| AkssoraCoreError::RootfsConfig(e.to_string()))?;
 
         client
             .put(
@@ -111,7 +111,7 @@ impl VmManager {
                 },
             )
             .await
-            .expect("Failed to configure machine");
+            .map_err(|e| AkssoraCoreError::MachineConfig(e.to_string()))?;
 
         client
             .put(
@@ -122,7 +122,7 @@ impl VmManager {
                 },
             )
             .await
-            .expect("Failed to configure vsock");
+            .map_err(|e| AkssoraCoreError::VsockConfig(e.to_string()))?;
 
         client
             .put(
@@ -132,7 +132,7 @@ impl VmManager {
                 },
             )
             .await
-            .expect("Failed to start instance");
+            .map_err(|e| AkssoraCoreError::StartMicroVM(e.to_string()))?;
 
         Ok(VmManager {
             vsock_uds_path: config.vsock_uds_path,
@@ -142,13 +142,17 @@ impl VmManager {
     }
 
     pub async fn destroy(mut self) -> Result<()> {
-        self.process.kill()?;
-        self.process.wait()?;
+        self.process
+            .kill()
+            .map_err(|e| AkssoraCoreError::KillMicroVM(e.to_string()))?;
+        self.process
+            .wait()
+            .map_err(|e| AkssoraCoreError::KillMicroVM(e.to_string()))?;
         Ok(())
     }
 
     pub async fn exec(&self, cmd: &str) -> Result<ExecOutput> {
-        let stream = UnixStream::connect(&self.vsock_uds_path).await?;
+        let stream = UnixStream::connect(&self.vsock_uds_path).await.map_err(|e| AkssoraCoreError::VsockConnect(e.to_string()))?;
         let mut reader = BufReader::new(stream);
 
         reader.get_mut().write_all(b"CONNECT 1024\n").await?;
