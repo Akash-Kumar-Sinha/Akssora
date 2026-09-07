@@ -4,3 +4,11 @@ images/vmlinux
 .env
 **tests
 docs
+node_modules/
+.github/
+.agents/
+akssora_architecture/
+report/
+scripts/
+firecracker
+SECURITY.md

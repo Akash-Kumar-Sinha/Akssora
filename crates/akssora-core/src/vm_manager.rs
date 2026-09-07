@@ -1,5 +1,5 @@
 use crate::error::{AkssoraCoreError, Result};
-use crate::firecracker_client::FirecrackerClient;
+use crate::firecracker::FirecrackerClient;
 use crate::protocol::{GuestRequest, GuestResponse};
 use serde::Serialize;
 use std::{
@@ -72,7 +72,10 @@ impl VmManager {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .map_err(|e| AkssoraCoreError::ProcessSpawn(e.to_string()))?;
+            .map_err(|e| AkssoraCoreError::ProcessSpawn {
+                command: "firecracker".into(),
+                source: e,
+            })?;
 
         std::thread::sleep(std::time::Duration::from_millis(100));
 
@@ -142,24 +145,25 @@ impl VmManager {
     }
 
     pub async fn destroy(mut self) -> Result<()> {
-        self.process
-            .kill()
-            .map_err(|e| AkssoraCoreError::KillMicroVM(e.to_string()))?;
-        self.process
-            .wait()
-            .map_err(|e| AkssoraCoreError::KillMicroVM(e.to_string()))?;
+        self.process.kill().map_err(AkssoraCoreError::KillMicroVM)?;
+        self.process.wait().map_err(AkssoraCoreError::KillMicroVM)?;
         Ok(())
     }
 
     pub async fn exec(&self, cmd: &str) -> Result<ExecOutput> {
-        let stream = UnixStream::connect(&self.vsock_uds_path).await.map_err(|e| AkssoraCoreError::VsockConnect(e.to_string()))?;
+        let stream = UnixStream::connect(&self.vsock_uds_path)
+            .await
+            .map_err(AkssoraCoreError::VsockConnect)?;
         let mut reader = BufReader::new(stream);
 
         reader.get_mut().write_all(b"CONNECT 1024\n").await?;
         let mut response_line = String::new();
         reader.read_line(&mut response_line).await?;
         if !response_line.starts_with("OK") {
-            return Err(AkssoraCoreError::VsockConnect(response_line));
+            return Err(AkssoraCoreError::VsockConnect(std::io::Error::new(
+                std::io::ErrorKind::ConnectionRefused,
+                response_line,
+            )));
         }
 
         let req = GuestRequest::Exec {
@@ -189,7 +193,8 @@ impl VmManager {
                 GuestResponse::Exit(code) => {
                     exit_code = code;
                     break;
-                } // _ => return Err(AkssoraCoreError::UnexpectedResponse),
+                }
+                _ => {}
             }
         }
 

@@ -75,6 +75,12 @@ fn mount_essential_filesystems() {
         nix::libc::sethostname(name.as_ptr(), 7);
     }
     let _ = std::fs::write("/etc/hostname", "akssora\n");
+    let _ = std::fs::write("/etc/hosts", "127.0.0.1 localhost akssora\n::1 localhost akssora\n");
+    let _ = std::fs::create_dir_all("/etc/profile.d");
+    let prompt_rc = "export PS1='\\[\\033[1;36m\\]akssora>\\[\\033[0m\\] '\nexport PROMPT_COMMAND=''\n";
+    let _ = std::fs::write("/root/.bashrc", prompt_rc);
+    let _ = std::fs::write("/root/.profile", prompt_rc);
+    let _ = std::fs::write("/etc/profile.d/akssora.sh", prompt_rc);
 }
 
 #[tokio::main]

@@ -1,10 +1,10 @@
-use std::os::fd::AsRawFd;
+use std::os::fd::{AsRawFd, OwnedFd};
 use std::path::Path;
 use std::process::Stdio;
 
 use akssora_core::protocol::{GuestRequest, GuestResponse, read_request, write_response};
 use nix::fcntl::{FcntlArg, OFlag, fcntl};
-use nix::pty::{PtyMaster, openpty};
+use nix::pty::openpty;
 use tokio::io::unix::AsyncFd;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
@@ -17,7 +17,7 @@ impl PtySession {
     pub async fn run<S: AsyncReadExt + AsyncWriteExt + Unpin>(stream: &mut S) -> Result<()> {
         let pty = openpty(None, None).map_err(AkssoraGuestAgentError::PtyOpen)?;
 
-        let master = unsafe { PtyMaster::from_owned_fd(pty.master) };
+        let master = pty.master;
 
         let slave_file: std::fs::File = pty.slave.into();
         let stdin = slave_file
@@ -35,12 +35,29 @@ impl PtySession {
             "/bin/sh"
         };
 
-        // INFO: ensure /root and history files exist so interactive tools (e.g. Python REPL) can persist history
+        // INFO: ensure /root, /etc/profile.d, and history files exist
         let _ = std::fs::create_dir_all("/root");
+        let _ = std::fs::create_dir_all("/etc/profile.d");
         let _ = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open("/root/.python_history");
+        let _ = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/root/.bash_history");
+
+        // INFO: persist prompt in rc files so login shells also pick it up immediately
+        let prompt_rc = "export PS1='\\[\\033[1;36m\\]akssora>\\[\\033[0m\\] '\nexport PROMPT_COMMAND=''\n";
+        let _ = std::fs::write("/root/.bashrc", prompt_rc);
+        let _ = std::fs::write("/root/.profile", prompt_rc);
+        let _ = std::fs::write("/etc/profile.d/akssora.sh", prompt_rc);
+        let _ = std::fs::write("/etc/hostname", "akssora\n");
+
+        unsafe {
+            let name = c"akssora";
+            nix::libc::sethostname(name.as_ptr(), 7);
+        }
 
         let mut cmd = Command::new(shell);
         cmd.arg("-l")
@@ -78,10 +95,12 @@ impl PtySession {
 
         let mut child = cmd.spawn().map_err(AkssoraGuestAgentError::PtySpawn)?;
 
-        let flags = fcntl(&master, FcntlArg::F_GETFL).map_err(AkssoraGuestAgentError::PtyFcntl)?;
+        let flags = fcntl(master.as_raw_fd(), FcntlArg::F_GETFL)
+            .map_err(AkssoraGuestAgentError::PtyFcntl)?;
         let mut flags = OFlag::from_bits_truncate(flags);
         flags.insert(OFlag::O_NONBLOCK);
-        fcntl(&master, FcntlArg::F_SETFL(flags)).map_err(AkssoraGuestAgentError::PtyFcntl)?;
+        fcntl(master.as_raw_fd(), FcntlArg::F_SETFL(flags))
+            .map_err(AkssoraGuestAgentError::PtyFcntl)?;
 
         let async_master = AsyncFd::new(master).map_err(AkssoraGuestAgentError::AsyncFd)?;
 
@@ -166,7 +185,7 @@ impl PtySession {
         Ok(())
     }
 
-    async fn write_to_master(async_master: &AsyncFd<PtyMaster>, data: &[u8]) -> Result<()> {
+    async fn write_to_master(async_master: &AsyncFd<OwnedFd>, data: &[u8]) -> Result<()> {
         let mut written = 0;
 
         while written < data.len() {
