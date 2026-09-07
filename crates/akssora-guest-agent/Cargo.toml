@@ -1,0 +1,24 @@
+[package]
+name = "akssora-guest-agent"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "akssora-guest-agent"
+path = "src/main.rs"
+
+[dependencies]
+akssora-core = { path = "../akssora-core" }
+tokio = { workspace = true }
+tokio-vsock = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+nix = { workspace = true }
+tracing = { workspace = true }
+once_cell = "1"
+libc = "0.2"
+[dev-dependencies]
+uuid = { workspace = true }
+
